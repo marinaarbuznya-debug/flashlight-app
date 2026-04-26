@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ліхтарик</title>
+<style>
+  :root { --bg: #0a0a0a; --on: #FFD700; --text: #e0e0e0; --dim: #444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: monospace; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 48px; }
+  h1 { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--dim); }
+  .lamp { width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle, #fff9c4, #FFD700, #b8860b); transition: all 0.4s ease; opacity: 0.15; }
+  .lamp.on { opacity: 1; box-shadow: 0 0 40px 20px rgba(255,215,0,0.4), 0 0 100px 60px rgba(255,200,0,0.2); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 40px 20px rgba(255,215,0,0.4)}50%{box-shadow:0 0 60px 30px rgba(255,215,0,0.6)} }
+  .buttons { display: flex; gap: 16px; }
+  button { font-family: monospace; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; padding: 16px 32px; border: 1px solid; border-radius: 2px; cursor: pointer; background: transparent; }
+  #btnOn { border-color: var(--on); color: var(--on); }
+  #btnOff { border-color: var(--dim); color: var(--dim); }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+  #status { font-size: 11px; letter-spacing: 2px; color: var(--dim); min-height: 20px; }
+  #status.ok { color: #4caf50; }
+  #status.err { color: #f44336; }
+  #status.loading { color: var(--on); }
+</style>
+</head>
+<body>
+<h1>Керування ліхтариком</h1>
+<div class="lamp" id="lamp"></div>
+<div class="buttons">
+  <button id="btnOn" onclick="send('on')">Увімкнути</button>
+  <button id="btnOff" onclick="send('off')">Вимкнути</button>
+</div>
+<div id="status">готово</div>
+<script>
+const DB_URL = "https://flashlight-app-64e03-default-rtdb.europe-west1.firebasedatabase.app";
+const PROJECT_ID = "flashlight-app-64e03";
+const CLIENT_EMAIL = "firebase-adminsdk-fbsvc@flashlight-app-64e03.iam.gserviceaccount.com";
+const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDTPtDWmw+Bpwkr
+vwka9kO6jy82nLO7RLNsb+WpkYfHhIjYNiOIjnmGAGBaH+wHZ88kSU/xeHE/S+27
+mhAr9310hiI8EHYS4JW2XGnTSXKJB5PH+SLW7fgBuP8LzlgCvcna23PNmMfwvuUD
+codQ4apoVvGQV6NswSvOWfWOldJzl6G2ltnJvv+k5pxvoqu5hXyaDqSpGVOcttiH
+c7JyV86Lbj6rFhnRimO5yb7G3gmJfn5fFz79tmH3IwdSMpWGVVqWGXJ2Z2uh3Sg0
+YHCRaonFr+gMUWSuqV03mMztrDvUQOZeyJz4wo7KkIcOHtFBQvcv7QlHtsogyKtq
+SHbzcz9NAgMBAAECggEALNWgsmOvq1dd4WyGzLOm1VItdZxVozHmGOY46r/p/wUY
+nDcFXKbMkQ3EZWxwBnRYaP2sW3YyJvqBBvegZgx9kn0jh/cAcGo9LDq59S+aAQ5c
+Ja2xYMeaAxeV/hX55P8N+AbqsaCzEtwZNB2bLaXvqnyFgZqwI1VubDn4nZ4b0A9k
+SAdE8iDuGY8dR6pIt1tYxRPhGUP/73Tj3cWn6zJG5GDjbM4a223/HFovyxni9ziY
+To+nKSGHIx4DtiSO8wR2qMaOjO60C40yIpXm7AhRKcMmbY1JubIqldyasn1dpOiq
+6QHr790/ybQmBmUbte/7uSjerduBZLnpS2aF75AY4QKBgQD3zdPBi7BVKTKSxweB
+QaoeZ01FbWL4bSQd2sOanEacDiaTIXdVOPBsvYXWHGiaG57k3Wud05BiGGMUkqlj
+/91y/Byo61On6MC3nFYIuSRO8D9VgjQBqEFNODKDa2mESgfb+cYFRNb0a5BI0ZeJ
+RwM24GL7+Se2K4uiwCteIJvtMQKBgQDaO3G4BksaTRSLsRlEjeLbOQKdBjn7mhWU
+oQvmwO0AtgaRLbKKciNpBg0UH4vJWj5keHWptVlMMRI4aDNhQaVJkxA1GbfTB/Yn
+lidKqldORt8LBab7/vIE01N3nrtD45cZ4P8UDH+oHsnFLcZOWpprQDTZtt+Omj/N
+qZxjBUA83QKBgAHeLVByKxwZOWZd1bKluhCMmsqBLpPMzs7izUKnFukqOiQ1xl6A
+FV/cddvNTwSKXMJA4QTJiXcT0/tdt6UnUpYBTH4BeBn16S35IbTjIGDv8qpEVvwE
+NqnMWKUg9CSpIjIISfPUNwKUpPvHiKriPCX3vwdDM4duAJlzdWA6QrKhAoGAc22N
+sLBjeP3cKCb8Hm6N1zZIU5W/hXzyfTLRgLP6p62fu5pYHTJR2HMC5+nnnhDFf47X
+bXQmT06FPKCgzIhUTJ4krHF18YD8ieO51JxUoWqK/uF2eUNX74V3WIX0tuviOCXx
+xUD3JI1kW47inP7/PksvqRg5FswvgzB7L0TPvWECgYEAv2XfEfmcbBceKmQhD6dM
+CBSeGZeMAwdc+cXVYPjFLC1uiG8lxyc6ZOGKb9gxOKplAyywEV7gfwC94mPeP0lG
+D7gPmwgmVjYIJBDpg+jgBalqUz4A1w8aoJsfET3fsr0cbtxp+RFuiee8go9+ULvK
+yAaCWSdD+vxEG2xZMd4Y+Vk=
+-----END PRIVATE KEY-----`;
+let FCM_TOKEN = null;
+
+async function loadToken() {
+  const resp = await fetch(`${DB_URL}/token.json`);
+  FCM_TOKEN = await resp.json();
+}
+
+function setStatus(msg, type='') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = type;
+}
+
+async function getAccessToken() {
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { iss: CLIENT_EMAIL, scope: 'https://www.googleapis.com/auth/firebase.messaging', aud: 'https://oauth2.googleapis.com/token', exp: now + 3600, iat: now };
+  const b64 = obj => btoa(JSON.stringify(obj)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const signingInput = `${b64(header)}.${b64(payload)}`;
+  const keyData = PRIVATE_KEY.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
+  const binaryKey = Uint8Array.from(atob(keyData), c => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey('pkcs8', binaryKey.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signingInput));
+  const b64sig = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const jwt = `${signingInput}.${b64sig}`;
+  const resp = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}` });
+  const data = await resp.json();
+  return data.access_token;
+}
+
+async function send(command) {
+  document.getElementById('btnOn').disabled = true;
+  document.getElementById('btnOff').disabled = true;
+  setStatus('надсилаю команду...', 'loading');
+  try {
+    await loadToken();
+    const token = await getAccessToken();
+    const resp = await fetch(`https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: { token: FCM_TOKEN, data: { command } } })
+    });
+    if (resp.ok) {
+      const lamp = document.getElementById('lamp');
+      if (command === 'on') { lamp.classList.add('on'); setStatus('✓ ліхтарик увімкнено', 'ok'); }
+      else { lamp.classList.remove('on'); setStatus('✓ ліхтарик вимкнено', 'ok'); }
+    } else {
+      const err = await resp.json();
+      setStatus('помилка: ' + (err.error?.message || 'невідома'), 'err');
+    }
+  } catch(e) { setStatus('помилка з\'єднання', 'err'); }
+  document.getElementById('btnOn').disabled = false;
+  document.getElementById('btnOff').disabled = false;
+}
+</script>
+</body>
+</html>
