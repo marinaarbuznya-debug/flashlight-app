@@ -14,28 +14,34 @@ public class FlashlightService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
+        createNotificationChannel();
+        startForeground(1, buildNotification());
         try {
+            cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
             cameraId = cameraManager.getCameraIdList()[0];
         } catch (Exception e) {
             e.printStackTrace();
         }
-        createNotificationChannel();
-        startForeground(1, buildNotification());
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             String command = intent.getStringExtra("command");
-            try {
-                if ("on".equals(command)) {
-                    cameraManager.setTorchMode(cameraId, true);
-                } else if ("off".equals(command)) {
-                    cameraManager.setTorchMode(cameraId, false);
+            if (command != null) {
+                try {
+                    if (cameraManager == null) {
+                        cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
+                        cameraId = cameraManager.getCameraIdList()[0];
+                    }
+                    if ("on".equals(command)) {
+                        cameraManager.setTorchMode(cameraId, true);
+                    } else if ("off".equals(command)) {
+                        cameraManager.setTorchMode(cameraId, false);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
         }
         return START_STICKY;
