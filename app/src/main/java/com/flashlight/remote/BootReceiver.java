@@ -9,7 +9,8 @@ import android.util.Log;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d("BootReceiver", "Boot received: " + intent.getAction());
+        String action = intent.getAction();
+        Log.d("BootReceiver", "Received: " + action);
         try {
             Intent service = new Intent(context, FlashlightService.class);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
